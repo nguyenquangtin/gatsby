@@ -15,7 +15,7 @@ executors:
 aliases:
   e2e-executor: &e2e-executor
     docker:
-      - image: cypress/browsers:node12.18.3-chrome87-ff82
+      - image: cypress/browsers:node14.15.0-chrome86-ff82
 
   restore_cache: &restore_cache
     restore_cache:
@@ -121,10 +121,12 @@ aliases:
     environment:
       CYPRESS_PROJECT_ID: s3j3qj
       CYPRESS_RECORD_KEY: 3904ca0c-bc98-47d9-8371-b68c5e81fb9b
+      GATSBY_EXPERIMENTAL_LMDB_STORE: 1
     steps:
       - e2e-test:
           test_path: e2e-tests/development-runtime
           skip_file_change_test: << parameters.nightly >>
+          npm_rebuild: true
       - notify-status:
           condition: << parameters.nightly >>
 
@@ -154,6 +156,9 @@ commands:
       test_command:
         type: string
         default: "yarn test"
+      npm_rebuild:
+        type: boolean
+        default: false
     steps:
       - checkout
       # In case of failure, add these steps again. Cache probably got deleted
@@ -166,6 +171,12 @@ commands:
             - run: ./scripts/assert-changed-files.sh "<< parameters.trigger_pattern >>|<< parameters.test_path >>/*"
 
       - <<: *attach_to_bootstrap
+      - when:
+          condition: << parameters.npm_rebuild >>
+          steps:
+            - run: npm rebuild
+            - run: yarn list react
+            - run: yarn why lmdb-store
       - run:
           name: Install gatsby-dev
           command: yarn global add gatsby-dev-cli
